@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package uplink;
+
+service Messaging {
+  rpc Push(Messages) returns (Messages) {}
+}
+
+message Messages {
+  repeated Message messages = 1;
+}
+
+message Message {
+  uint64 id = 1;
+  string topic = 2;
+  string text = 3;
+}
