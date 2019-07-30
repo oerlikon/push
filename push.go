@@ -20,6 +20,7 @@ import (
 type Options struct {
 	Listen  bool
 	Echo    bool
+	Script  string
 	Address string
 	Timeout time.Duration
 	Count   int
@@ -33,8 +34,9 @@ var (
 
 func init() {
 	flags.SetOutput(ioutil.Discard)
-	flags.BoolVar(&options.Listen, "L", false, "listen mode")
+	flags.BoolVar(&options.Listen, "L", false, "listen")
 	flags.BoolVar(&options.Echo, "E", false, "echo")
+	flags.StringVar(&options.Script, "S", "", "script")
 	flags.StringVar(&options.Address, "a", "", "server address")
 	flags.DurationVar(&options.Timeout, "w", time.Second, "request timeout")
 	flags.IntVar(&options.Count, "n", 1, "repeat count")
@@ -51,15 +53,27 @@ func main() {
 		os.Exit(1)
 	}
 
-	if options.Listen {
+	if options.Listen || options.Echo || options.Script != "" {
 		ln, err := net.Listen("tcp", options.Address)
 		if err != nil {
 			LogEcholn("Error: %s", err)
 			os.Exit(2)
 		}
-		srv := grpc.NewServer()
-		pb.RegisterMessagingServer(srv, NewServer(options.Echo))
-		srv.Serve(ln)
+		srv := NewMessagingServer()
+		if options.Echo {
+			srv.SetEcho(true)
+		}
+		if options.Script != "" {
+			content, err := ioutil.ReadFile(options.Script)
+			if err != nil {
+				LogEcholn("Error: %s", err)
+				os.Exit(2)
+			}
+			srv.SetScript(strings.Split(string(content), "\n"))
+		}
+		s := grpc.NewServer()
+		pb.RegisterMessagingServer(s, srv)
+		s.Serve(ln)
 	}
 
 	conn, err := grpc.Dial(options.Address, grpc.WithInsecure())
