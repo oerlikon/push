@@ -59,17 +59,17 @@ func main() {
 			LogEcholn("Error: %s", err)
 			os.Exit(2)
 		}
-		srv := NewMessagingServer()
-		if options.Echo {
-			srv.SetEcho(true)
-		}
-		if options.Script != "" {
+		var srv pb.MessagingServer
+		switch {
+		case options.Listen, options.Echo:
+			srv = NewEchoServer(options.Echo)
+		case options.Script != "":
 			content, err := ioutil.ReadFile(options.Script)
 			if err != nil {
 				LogEcholn("Error: %s", err)
 				os.Exit(2)
 			}
-			srv.SetScript(strings.Split(string(content), "\n"))
+			srv = NewScriptServer(strings.Split(string(content), "\n"))
 		}
 		s := grpc.NewServer()
 		pb.RegisterMessagingServer(s, srv)
