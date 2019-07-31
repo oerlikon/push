@@ -52,24 +52,27 @@ func main() {
 		LogEcholn("Address? (-a ...)")
 		os.Exit(1)
 	}
+	if options.Echo && options.Script != "" {
+		LogEcholn("Echo or script? (-E|-S ...)")
+		os.Exit(1)
+	}
 
-	if options.Listen || options.Echo || options.Script != "" {
+	if options.Script != "" || options.Echo || options.Listen {
 		ln, err := net.Listen("tcp", options.Address)
 		if err != nil {
 			LogEcholn("Error: %s", err)
 			os.Exit(2)
 		}
 		var srv pb.MessagingServer
-		switch {
-		case options.Listen, options.Echo:
-			srv = NewEchoServer(options.Echo)
-		case options.Script != "":
+		if options.Script != "" {
 			content, err := ioutil.ReadFile(options.Script)
 			if err != nil {
 				LogEcholn("Error: %s", err)
 				os.Exit(2)
 			}
 			srv = NewScriptServer(strings.Split(string(content), "\n"))
+		} else {
+			srv = NewEchoServer(options.Echo)
 		}
 		s := grpc.NewServer()
 		pb.RegisterMessagingServer(s, srv)
@@ -97,9 +100,11 @@ func main() {
 			}
 			Logf("Push: [%s][%d] %s", msg.Topic, msg.Id, msg.Text)
 			req := &pb.Messages{Messages: []*pb.Message{msg}}
-			ctx, cancel := context.WithTimeout(context.Background(), options.Timeout)
-			defer cancel()
-			resp, err := client.Push(ctx, req)
+			resp, err := func() (*pb.Messages, error) {
+				ctx, cancel := context.WithTimeout(context.Background(), options.Timeout)
+				defer cancel()
+				return client.Push(ctx, req)
+			}()
 			if err != nil {
 				LogEcholn("Error: %s", err)
 				os.Exit(2)

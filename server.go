@@ -12,14 +12,11 @@ import (
 
 type EchoServer struct {
 	echo   bool
-	nextid uint64
+	lastid uint64
 }
 
 func NewEchoServer(echo bool) *EchoServer {
-	return &EchoServer{
-		echo:   echo,
-		nextid: 1,
-	}
+	return &EchoServer{echo: echo}
 }
 
 func (s *EchoServer) Push(ctx context.Context, request *pb.Messages) (*pb.Messages, error) {
@@ -27,13 +24,12 @@ func (s *EchoServer) Push(ctx context.Context, request *pb.Messages) (*pb.Messag
 	for _, msg := range request.Messages {
 		fmt.Printf("[%s][%d] %s\n", msg.GetTopic(), msg.GetId(), msg.GetText())
 		if s.echo {
-			rep := &pb.Message{
-				Id:    s.nextid,
+			s.lastid++
+			reply.Messages = append(reply.Messages, &pb.Message{
+				Id:    s.lastid,
 				Topic: msg.GetTopic(),
 				Text:  msg.GetText(),
-			}
-			reply.Messages = append(reply.Messages, rep)
-			s.nextid++
+			})
 		}
 	}
 	return reply, nil
@@ -44,29 +40,24 @@ func (s *EchoServer) Push(ctx context.Context, request *pb.Messages) (*pb.Messag
 
 type ScriptServer struct {
 	script []string
-	nextid uint64
+	lastid uint64
 }
 
 func NewScriptServer(script []string) *ScriptServer {
-	s := &ScriptServer{
-		script: make([]string, len(script)),
-		nextid: 1,
-	}
+	s := &ScriptServer{script: make([]string, len(script))}
 	copy(s.script, script)
 	return s
 }
 
 func (s *ScriptServer) Push(ctx context.Context, request *pb.Messages) (*pb.Messages, error) {
 	reply := &pb.Messages{}
-	topic := ""
 	if len(request.Messages) == 0 {
 		return reply, nil
 	}
+	topic := ""
 	for _, msg := range request.Messages {
-		if topic == "" {
-			topic = msg.GetTopic()
-		}
 		fmt.Printf("[%s][%d] %s\n", msg.GetTopic(), msg.GetId(), msg.GetText())
+		topic = msg.GetTopic()
 	}
 	for len(s.script) > 0 {
 		l := s.script[0]
@@ -74,14 +65,13 @@ func (s *ScriptServer) Push(ctx context.Context, request *pb.Messages) (*pb.Mess
 		if l == "" {
 			break
 		}
-		rep := &pb.Message{
-			Id:    s.nextid,
+		fmt.Println(l)
+		s.lastid++
+		reply.Messages = append(reply.Messages, &pb.Message{
+			Id:    s.lastid,
 			Topic: topic,
 			Text:  l,
-		}
-		reply.Messages = append(reply.Messages, rep)
-		fmt.Println(l)
-		s.nextid++
+		})
 	}
 	return reply, nil
 }
