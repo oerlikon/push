@@ -99,11 +99,10 @@ func main() {
 				msg.Text = text
 			}
 			Logf("Push: [%s][%d] %s", msg.Topic, msg.Id, msg.Text)
-			req := &pb.Messages{Messages: []*pb.Message{msg}}
 			resp, err := func() (*pb.Messages, error) {
 				ctx, cancel := context.WithTimeout(context.Background(), options.Timeout)
 				defer cancel()
-				return client.Push(ctx, req)
+				return client.Push(ctx, &pb.Messages{Messages: []*pb.Message{msg}})
 			}()
 			if err != nil {
 				LogEcholn("Error: %s", err)
